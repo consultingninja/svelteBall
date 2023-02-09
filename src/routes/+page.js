@@ -50,7 +50,7 @@
 export async function load({fetch}){
     console.log('loading...');
 
-    const response = await fetch('https://svelte-ball.vercel.app/api/scrapeWeb');
+    const response = await fetch('/api/scrapeWeb');
     const data = await response.json()
     return{
         ballInfo: data
