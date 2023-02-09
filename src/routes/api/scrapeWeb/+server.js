@@ -47,9 +47,9 @@ async function webScrapingExample() {
   return {topRegBalls ,topPowerBalls }
 }
 
-export default async function GET(request, response){
+export async function GET(){
 const results = await webScrapingExample()
 //const data = await results.json()
-response.json({ballInfo:results}).send(200)
+return new Response(JSON.stringify({ballInfo:results}),{status:200})
 
 }
