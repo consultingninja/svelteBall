@@ -1,5 +1,5 @@
-import * as cheerio from 'cheerio';
-import * as axios from 'axios';
+import cheerio from 'cheerio';
+import  axios from 'axios';
 
 async function webScrapingExample() {
     let year  = 2016 ;
@@ -47,10 +47,10 @@ async function webScrapingExample() {
   return {topRegBalls ,topPowerBalls }
 }
 
-export async function load(){
-    console.log('loading...');
+export default async function handler(){
+const results = await webScrapingExample()
 
-    return{
-        ballInfo: await webScrapingExample()
-    }
+return new Response(JSON.stringify({ballInfo:results}),{status:200})
+
+
 }
