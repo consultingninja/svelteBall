@@ -1,18 +1,25 @@
 <script>
     import { fade } from 'svelte/transition';
-    export let data;
+    import { onMount } from 'svelte';
     let sets = [];
     let error = false;
+    let ballInfo = {};
 
+    onMount(async() => {
+        const response = await fetch('http://localhost:5173/api/scrapeWeb',{method:"GET"});
+        const responseData = await response.json();
+        ballInfo['topRegBalls'] = responseData.ballInfo.topRegBalls;
+        ballInfo['topPowerBalls']  = responseData.ballInfo.topPowerBalls;
+    });
+//https://svelte-ball.vercel.app
     async function getSet(topRegBalls,topPowerBalls){
         try{
-            const response = await  fetch('https://svelte-ball.vercel.app//api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
+            const response = await  fetch('http://localhost:5173/api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
             const responseData = await response.json();
             sets.push(responseData.set)
             const newArray = [...sets];
             sets = newArray;
-            console.log(responseData);
-            console.log(sets)
+
         }
         catch{
 
@@ -29,7 +36,7 @@
 
 <h1>Welcome to Consutling Ninja</h1>
 <h2>I wish you luck!</h2>
-<button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
+<button on:click={getSet(ballInfo.topRegBalls,ballInfo.topPowerBalls)}>Generate Set</button>
 {#if sets.length > 0}
     <div class="ball-container" >
     {#each sets as set, index}

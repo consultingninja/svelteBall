@@ -47,10 +47,8 @@ async function webScrapingExample() {
   return {topRegBalls ,topPowerBalls }
 }
 
-export async function load(){
-    console.log('loading...');
+export async function GET(){
 
-    return{
-        ballInfo: await webScrapingExample()
-    }
+    return new Response(JSON.stringify({ballInfo:await webScrapingExample(),req:null}),{status:200})
+
 }
