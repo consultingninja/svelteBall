@@ -6,7 +6,7 @@
     let ballInfo = {};
 
     onMount(async() => {
-        const response = await fetch('https://svelte-ball-ldag0tg1u-consultingninja.vercel.app/api/scrapeWeb',{method:"GET"});
+        const response = await fetch('/api/scrapeWeb',{method:"GET"});
         const responseData = await response.json();
         ballInfo['topRegBalls'] = responseData.ballInfo.topRegBalls;
         ballInfo['topPowerBalls']  = responseData.ballInfo.topPowerBalls;
@@ -14,7 +14,7 @@
 //https://svelte-ball.vercel.app
     async function getSet(topRegBalls,topPowerBalls){
         try{
-            const response = await  fetch('https://svelte-ball-ldag0tg1u-consultingninja.vercel.app/api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
+            const response = await  fetch('/api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
             const responseData = await response.json();
             sets.push(responseData.set)
             const newArray = [...sets];
