@@ -50,6 +50,6 @@ async function webScrapingExample() {
 export async function GET(){
 const results = await webScrapingExample()
 //const data = await results.json()
-return new Response(JSON.stringify({ballInfo:results}),{status:200})
+return new Response(JSON.stringify(results),{status:200})
 
 }
