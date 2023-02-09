@@ -48,11 +48,10 @@
 // }
 
 export async function load({fetch}){
-    console.log('loading...');
 
     const response = await fetch('/api/scrapeWeb');
     const data = await response.json()
-    console.log(data);
+    //console.log(data);
     return{
         ballInfo: data
     }
