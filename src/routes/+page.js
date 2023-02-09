@@ -53,6 +53,6 @@ export async function load({fetch}){
     const data = await response.json()
     //console.log(data);
     return{
-        ballInfo: data
+        data
     }
 }

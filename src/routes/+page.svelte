@@ -7,8 +7,6 @@
 
 //https://svelte-ball.vercel.app
      function getSet(topRegBalls,topPowerBalls){
-        console.log("hello? wtf", topRegBalls,topPowerBalls)
-        console.log(data);
         let set = [];
         if(!topRegBalls || !topPowerBalls)return 
 
