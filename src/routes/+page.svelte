@@ -6,7 +6,7 @@
 
     async function getSet(topRegBalls,topPowerBalls){
         try{
-            const response = await  fetch('http://localhost:5173/api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
+            const response = await  fetch('https://svelte-ball.vercel.app//api/generateSet', {method:"POST",body:JSON.stringify({whiteBalls:topRegBalls, redBalls: topPowerBalls})});
             const responseData = await response.json();
             sets.push(responseData.set)
             const newArray = [...sets];
