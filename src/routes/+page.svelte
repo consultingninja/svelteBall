@@ -36,7 +36,7 @@
 
 <h1>Welcome to Consutling Ninja</h1>
 <h2>I wish you luck!</h2>
-<button on:click={getSet(data.ballInfo.topRegBalls??[],data.ballInfo.topPowerBalls??[])}>Generate Set</button>
+<button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
 {#if sets.length > 0}
     <div class="ball-container" >
     {#each sets as set, index}
