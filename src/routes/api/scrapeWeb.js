@@ -49,7 +49,7 @@ async function webScrapingExample() {
 
 export default async (request, response)=>{
 const results = await webScrapingExample()
-const data = await results.json()
-response.json({ballInfo:data}).send(200)
+//const data = await results.json()
+response.json({ballInfo:results}).send(200)
 
 }
