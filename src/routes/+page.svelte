@@ -22,11 +22,16 @@
           let randomObject = topPowerBalls[randomIndex];
             set.push(parseInt(randomObject.key));
             sets.push(set)
-            const newArray = [...sets];
-            sets = newArray;
+
+            sets = sets
 
             console.log('sets',sets);
 
+        }
+
+        function handleDelete(index){
+            sets.splice(index,1);
+            sets = sets
         }
 
 
@@ -39,21 +44,46 @@
 <h1>Welcome to Consutling Ninja</h1>
 <h2>I wish you luck!</h2>
 <button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
-{#if sets.length > 0}
-    <div class="ball-container" >
-    {#each sets as set, index}
+<div class="container-wrapper">
 
-            {#each set as ball, index}
+    {#each sets as set, setIndex (setIndex)}
+        <div class="ball-container" >
+            {#each set as ball, index (index)}
                 <div transition:fade="{{delay: 250, duration: 300}}" class={index <5? 'ball' : 'powerball'}><span>{ball}</span></div>
             {/each}
-
+            <button class="btn-delete" on:click={handleDelete(setIndex)} transition:fade="{{delay: 250, duration: 300}}" >
+                <span class="material-symbols-outlined">
+                    delete
+                    </span>
+            </button>
+        </div>
     {/each}
-    </div>
-    {:else}
-    <p>No sets yet, would you like to generate one?</p>
-{/if}
+
+</div>
 
 <style>
+    .btn-delete{
+        height: 3.5em;
+        width: 3.5em;
+        margin-left: .25em;
+        background-color: #242424;
+        text-align: center;
+    }
+    .btn-delete:hover{
+        box-shadow: 0 0 10px #fff;
+        transition: all 0.2s ease-in-out;
+        opacity: .5;
+        cursor:pointer
+    }
+    .material-symbols-outlined{
+        color:#FFF;
+        height: auto;
+    }
+    .container-wrapper{
+        display: grid;
+        grid-template-columns: auto auto;
+        grid-gap: 5px;
+    }
     .ball-container{
         display: flex;
         flex-direction: row;
@@ -61,7 +91,7 @@
         flex-wrap: wrap;
         margin-top: 1em;
         font-size: larger;
-
+        margin-right: 1em;
     }
     .ball{
         background-color: #FFF;
@@ -82,7 +112,7 @@
         height: 30px;
         width: 30px;
         border-radius: 50%;
-        margin-right: 1em;
+        margin-right: .3em;
         margin-bottom: .5em;
         padding: .5em;
         display: flex;
