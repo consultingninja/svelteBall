@@ -40,11 +40,12 @@
 
 </script>
 
-
+<div class="header-wrapper">
 <h1>Welcome to the PowerBall Generator (Beta)</h1>
 <h2>This is friends and family release.</h2>
 <h2>I wish you luck!</h2>
 <button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
+</div>
 <div class="container-wrapper">
 
     {#each sets as set, setIndex (setIndex)}
@@ -87,7 +88,7 @@
         flex-wrap: wrap;
     }
     .ball-container{
-        min-width: 350px;
+
         display: flex;
         flex-direction: row;
         justify-content: center;
@@ -122,4 +123,6 @@
         justify-content: center;
         align-items: center;
     }
+
+
 </style>
