@@ -41,7 +41,8 @@
 </script>
 
 
-<h1>Welcome to Consutling Ninja</h1>
+<h1>Welcome to the PowerBall Generator (Beta)</h1>
+<h2>This is friends and family release.</h2>
 <h2>I wish you luck!</h2>
 <button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
 <div class="container-wrapper">
@@ -80,11 +81,13 @@
         height: auto;
     }
     .container-wrapper{
-        display: grid;
-        grid-template-columns: auto auto;
-        grid-gap: 5px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        flex-wrap: wrap;
     }
     .ball-container{
+        min-width: 350px;
         display: flex;
         flex-direction: row;
         justify-content: center;
