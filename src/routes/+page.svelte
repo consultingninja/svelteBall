@@ -6,27 +6,28 @@
 
 
 //https://svelte-ball.vercel.app
-     function getSet(topRegBalls,topPowerBalls){
-        let set = [];
-        if(!topRegBalls || !topPowerBalls)return 
-
-        while (set.length < 5) {
+function getSet(topRegBalls,topPowerBalls){
+        let set = new Set();
+        if(!topRegBalls || !topPowerBalls) return;
+        while(set.size < 5){
             let randomIndex = Math.floor(Math.random() * topRegBalls.length);
             let randomObject = topRegBalls[randomIndex];
-          
-            if (!set.includes(randomObject.key)) {
-                set.push(parseInt(randomObject.key));
+            if(!set.has(parseInt(randomObject.key))){
+            set.add(parseInt(randomObject.key));
             }
-          }
-          let randomIndex = Math.floor(Math.random() * topPowerBalls.length);
-          let randomObject = topPowerBalls[randomIndex];
-            set.push(parseInt(randomObject.key));
-            sets.push(set)
-
-            sets = sets
-
-            console.log('sets',sets);
-
+        }
+        let redBallAdded = false;
+        while(!redBallAdded){
+            let randomIndex = Math.floor(Math.random() * topPowerBalls.length);
+            let randomObject = topPowerBalls[randomIndex];
+            if(!set.has(parseInt(randomObject.key))){
+            set.add(parseInt(randomObject.key));
+            redBallAdded = true;
+            }
+        }
+        sets.push(Array.from(set));
+        sets = sets;
+        console.log('sets', sets);
         }
 
         function handleDelete(index){
@@ -42,7 +43,7 @@
 
 <div class="header-wrapper">
 <h1>Welcome to the PowerBall Generator (Beta)</h1>
-<h2>This is friends and family release.</h2>
+<h2>This is a friends and family release.</h2>
 <h2>I wish you luck!</h2>
 <button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
 </div>
