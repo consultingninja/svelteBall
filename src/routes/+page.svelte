@@ -35,7 +35,121 @@ function getSet(topRegBalls,topPowerBalls){
             sets = sets
         }
 
+    //function to calculate standard deviation
+    function stdDeviation(numbers){
+    // Step 1: Calculate the mean
+    const mean = numbers.reduce((acc, num) => acc + num, 0) / numbers.length;
 
+    // Step 2: Calculate the squared difference from the mean for each number
+    const squaredDifferences = numbers.map(num => Math.pow(num - mean, 2));
+
+    // Step 3: Calculate the mean of the squared differences
+    const meanOfSquaredDifferences = squaredDifferences.reduce((acc, num) => acc + num, 0) / numbers.length;
+
+    // Step 4: Calculate the standard deviation (square root of the mean of squared differences)
+    const std = Math.sqrt(meanOfSquaredDifferences);
+    return std.toFixed(1)
+    }
+
+
+function generateNumberSets(ballinfo, powerballinfo, std) {
+    console.log('std', std);
+    let row = [];
+
+    // Generate first 5 numbers
+    let between20and30 = 0;
+    for (let j = 0; j < 5; j++) {
+      let num = Math.floor(Math.random() * 69) + 1;
+      if (num >= 20 && num <= 30) {
+        between20and30++;
+      }
+      row.push(num);
+    }
+
+    // Tweak numbers if needed
+    if (between20and30 < 3) {
+      row = adjustNumbersToRanges(row);
+    }
+
+    // Calculate std dev
+    const stdDev = stdDeviation(row);
+
+    // Tweak numbers if std dev is off
+    if (stdDev !== std) {
+      row = adjustNumbersToStdDev(row, 17);
+    }
+
+    // Row is good, add powerball and push
+
+    const lastNum = Math.floor(Math.random() * 26) + 1;
+    row.push(lastNum);
+    
+    sets.push(row);
+    sets = sets;
+  
+
+
+
+}
+
+function adjustNumbersToRanges(row) {
+    console.log('adjusting Numbers To Ranges', row);
+  const rangeMin = 20;
+  const rangeMax = 30;
+
+  while (getInRangeCount(row, rangeMin, rangeMax) < 3) {
+    const index = Math.floor(Math.random() * row.length); 
+
+    const newValue = getRandomNumberInRange(rangeMin, rangeMax);
+    row[index] = newValue;
+  }
+
+  return row;
+}
+function getRandomNumberInRange(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getInRangeCount(row, min, max) {
+
+  let count = 0;
+  for (let i = 0; i <= 5; i++) {
+    if (row[i] >= min && row[i] <= max) {
+      count++;
+    }
+  }
+
+  return count;
+
+}
+
+function adjustNumbersToStdDev(row, targetStdDev) {
+  let currentStdDev = stdDeviation(row);
+
+  if (currentStdDev === 0) {
+    // Avoid division by zero if the current standard deviation is zero
+    stdDeviation = 1;
+  }
+
+  const scaleFactor = targetStdDev / currentStdDev;
+  const duplicates = {};
+
+  for (let i = 0; i < row.length; i++) {
+    const originalValue = row[i];
+    const adjustedValue = Math.round(originalValue * scaleFactor);
+    const newValue = Math.min(Math.max(adjustedValue, 1), 68);
+
+    if (duplicates[newValue]) {
+      // Duplicate value detected, replace it with a random number
+      row[i] = getRandomNumberInRange(1, 69);
+    } else {
+      row[i] = newValue;
+      duplicates[newValue] = true;
+    }
+  }
+
+  return row;
+}
 
 
 
@@ -45,7 +159,10 @@ function getSet(topRegBalls,topPowerBalls){
 <h1>Welcome to the PowerBall Generator (Beta)</h1>
 <h2>This is a friends and family release.</h2>
 <h2>I wish you luck!</h2>
-<button on:click={getSet(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls)}>Generate Set</button>
+<img src="/ConsultingNinjaSmallHdNoBg.png" alt="Consulting Ninja Logo" />
+<button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Set</button>
+<button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Enhanced Set</button>
+
 </div>
 <div class="container-wrapper">
 

@@ -1,10 +1,12 @@
 import cheerio from 'cheerio';
 import  axios from 'axios';
 
+
 async function webScrapingExample() {
     let year  = 2016 ;
     let regBalls = {};
     let powerBalls = {};
+    let ballForStd = [];
     const baseReq = `https://www.powerball.net/archive/` ;
     while(year < 2023){
         const currentReq = `https://www.powerball.net/archive/${year}`
@@ -15,6 +17,7 @@ async function webScrapingExample() {
         $(".ball").each((i, elem) => {
             const text = $(elem).text();
             regBalls[text] = regBalls[text] ? regBalls[text] + 1 : 1;
+            ballForStd.push(parseInt(text));
         });
         //Find all power balls
         $(".powerball").each((i, elem) => {
@@ -44,7 +47,21 @@ async function webScrapingExample() {
     console.log(powerBallArray.slice(0,10));
     const topRegBalls = regBallArray.slice(0,10);
     const topPowerBalls = powerBallArray.slice(0,10);
-  return {topRegBalls ,topPowerBalls }
+
+    // Step 1: Calculate the mean
+    const mean = ballForStd.reduce((acc, num) => acc + num, 0) / ballForStd.length;
+
+    // Step 2: Calculate the squared difference from the mean for each number
+    const squaredDifferences = ballForStd.map(num => Math.pow(num - mean, 2));
+
+    // Step 3: Calculate the mean of the squared differences
+    const meanOfSquaredDifferences = squaredDifferences.reduce((acc, num) => acc + num, 0) / ballForStd.length;
+
+    // Step 4: Calculate the standard deviation (square root of the mean of squared differences)
+    const std = Math.sqrt(meanOfSquaredDifferences).toFixed(1);
+
+
+  return {topRegBalls ,topPowerBalls, std }
 }
 
 export async function GET(){
