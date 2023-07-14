@@ -159,7 +159,6 @@ function adjustNumbersToStdDev(row, targetStdDev) {
 <h1>Welcome to the PowerBall Generator (Beta)</h1>
 <h2>This is a friends and family release.</h2>
 <h2>I wish you luck!</h2>
-<img src="/ConsultingNinjaSmallHdNoBg.png" alt="Consulting Ninja Logo" />
 <button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Set</button>
 <button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Enhanced Set</button>
 
