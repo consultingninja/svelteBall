@@ -76,12 +76,19 @@ function generateNumberSets(ballinfo, powerballinfo, std) {
 
     // Tweak numbers if std dev is off
     if (stdDev !== std) {
-      row = adjustNumbersToStdDev(row, 17);
+      row = adjustNumbersToStdDev(row, std);
     }
 
     // Row is good, add powerball and push
 
-    const lastNum = Math.floor(Math.random() * 26) + 1;
+    let lastNum = Math.floor(Math.random() * 26) + 1; 
+
+    while(row.includes(lastNum)) {
+    // Number is duplicate, get a new random number
+    lastNum = Math.floor(Math.random() * 26) + 1;
+    }
+
+    // Last num is guaranteed unique 
     row.push(lastNum);
     
     sets.push(row);
@@ -124,30 +131,40 @@ function getInRangeCount(row, min, max) {
 }
 
 function adjustNumbersToStdDev(row, targetStdDev) {
+    console.log('adjusting Numbers To Std Dev', row)
+    console.log('targetStdDev', targetStdDev)   
   let currentStdDev = stdDeviation(row);
 
   if (currentStdDev === 0) {
     // Avoid division by zero if the current standard deviation is zero
     stdDeviation = 1;
   }
+  const DELTA = 0.5;
 
-  const scaleFactor = targetStdDev / currentStdDev;
-  const duplicates = {};
+  while (Math.abs(currentStdDev - targetStdDev) > DELTA){
+    console.log('currentStdDev', currentStdDev)
 
-  for (let i = 0; i < row.length; i++) {
-    const originalValue = row[i];
-    const adjustedValue = Math.round(originalValue * scaleFactor);
-    const newValue = Math.min(Math.max(adjustedValue, 1), 68);
 
-    if (duplicates[newValue]) {
-      // Duplicate value detected, replace it with a random number
-      row[i] = getRandomNumberInRange(1, 69);
-    } else {
-      row[i] = newValue;
-      duplicates[newValue] = true;
+    const scaleFactor = targetStdDev / currentStdDev;
+    const duplicates = {};
+
+    for (let i = 0; i < row.length; i++) {
+        const originalValue = row[i];
+        const adjustedValue = Math.round(originalValue * scaleFactor);
+        const newValue = Math.min(Math.max(adjustedValue, 1), 69);
+
+        if (duplicates[newValue]) {
+        // Duplicate value detected, replace it with a random number
+        row[i] = getRandomNumberInRange(1, 69);
+        } else {
+        row[i] = newValue;
+        duplicates[newValue] = true;
+        }
     }
-  }
+    currentStdDev = stdDeviation(row);
 
+
+    }
   return row;
 }
 
