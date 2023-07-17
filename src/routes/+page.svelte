@@ -168,6 +168,46 @@ function adjustNumbersToStdDev(row, targetStdDev) {
   return row;
 }
 
+//function that takes a random array element from giant array then randomly adds or removes one from each element in the array checking to be sure there are no duplicates and no numbers are less than 1 or higher than 69
+function mitchsMystery(topReg,topPb,arrays) {
+  const result = [];
+  const arr = arrays[Math.floor(Math.random() * arrays.length)];
+
+  const topRegBalls = topReg.map(num => parseInt(num.key)); 
+
+  console.log(topRegBalls)
+
+  arr.forEach((num,index) => {
+    console.log('num', num);
+    console.log('index', index);
+    let rand;
+    
+    if(num === 1) {
+      rand = 1; 
+    } else if(num === 69){
+      rand = -1;
+    } else {
+      if(topRegBalls.includes(num)) rand = 0;
+      if(index === 5 && topPb.includes(num)) rand = 0;
+      else
+      rand = Math.random() < 0.5 ? -1 : 1;
+    }
+    
+    let newNum = num + rand;
+    
+    while(result.includes(newNum) || newNum <= 0 || newNum >= 69) {
+      rand = Math.random() < 0.5 ? -1 : 1; 
+      newNum = num + rand;
+    }
+    
+    result.push(newNum);
+
+  });
+
+    sets.push(result);
+    sets = sets;
+}
+
 
 
 </script>
@@ -178,6 +218,7 @@ function adjustNumbersToStdDev(row, targetStdDev) {
 <h2>I wish you luck!</h2>
 <button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Set</button>
 <button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Enhanced Set</button>
+<button on:click={mitchsMystery(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.allResults)}>Generate Set 2</button>
 
 </div>
 <div class="container-wrapper">

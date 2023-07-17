@@ -1,12 +1,35 @@
 import cheerio from 'cheerio';
 import  axios from 'axios';
 
+function combineArrays(arr1, arr2) {
+
+    // Validate input
+    if(arr1.length % 5 !== 0) {
+      throw new Error('First array length must be a multiple of 5');
+    }
+    if(arr1.length / 5 !== arr2.length) {
+      throw new Error('First array must be 5 times longer than second array'); 
+    }
+  
+    const result = [];
+  
+    for(let i=0; i < arr2.length; i++) {
+      const group = arr1.slice(i*5, i*5 + 5);
+      group.push(arr2[i]);
+      result.push(group);
+    }
+  
+    return result;
+  
+  }
 
 async function webScrapingExample() {
     let year  = 2016 ;
     let regBalls = {};
     let powerBalls = {};
     let ballForStd = [];
+    let regBallNumbers = [];
+    let powerBallNumbers = [];
     const baseReq = `https://www.powerball.net/archive/` ;
     while(year < 2023){
         const currentReq = `https://www.powerball.net/archive/${year}`
@@ -18,16 +41,21 @@ async function webScrapingExample() {
             const text = $(elem).text();
             regBalls[text] = regBalls[text] ? regBalls[text] + 1 : 1;
             ballForStd.push(parseInt(text));
+            regBallNumbers.push(parseInt(text));
         });
         //Find all power balls
         $(".powerball").each((i, elem) => {
             const text = $(elem).text();
             powerBalls[text] = powerBalls[text] ? powerBalls[text] + 1 : 1;
+            powerBallNumbers.push(parseInt(text));
         });
       
         year++
 
     }
+
+    const allResults = combineArrays(regBallNumbers,powerBallNumbers);
+    console.log(allResults);
 
     //create arrays of key value pairs
     let regBallArray  = [];
@@ -61,7 +89,7 @@ async function webScrapingExample() {
     const std = Math.sqrt(meanOfSquaredDifferences).toFixed(1);
 
 
-  return {topRegBalls ,topPowerBalls, std }
+  return {topRegBalls ,topPowerBalls, std , allResults }
 }
 
 export async function GET(){
