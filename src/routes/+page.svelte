@@ -1,233 +1,110 @@
 <script>
     import { fade } from 'svelte/transition';
+    import Circle from '$lib/circle/circle.svelte';
+
     let sets = [];
     let error = false;
-    export let data;
+    let errorText = '';
+    let loading = false;
+
+    function parseJSONFromString(data) {
+    let jsonData;
+    try {
+        // Attempt to parse the string as JSON
+        jsonData = JSON.parse(data);
+    } catch (error) {
+        // Parsing failed, try to extract JSON object from the string
+        try{
+            const startIndex = data.indexOf('{');
+        const endIndex = data.lastIndexOf('}');
+        if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+            const jsonString = data.substring(startIndex, endIndex + 1);
+            try {
+                jsonData = JSON.parse(jsonString);
+            } catch (error) {
+                console.error('Failed to parse JSON:', error);
+                jsonData = undefined; // Or any other fallback value
+            }
+        } else {
+            console.error('No JSON object found in the string.');
+            jsonData = undefined; // Or any other fallback value
+        }
+        }catch(error){
+            console.error('Failed to extract JSON object from the string:', error);
+            jsonData = undefined; // Or any other fallback value
+        }
+
+    }
+    return jsonData;
+}
 
 
-//https://svelte-ball.vercel.app
-function getSet(topRegBalls,topPowerBalls){
-        let set = new Set();
-        if(!topRegBalls || !topPowerBalls) return;
-        while(set.size < 5){
-            let randomIndex = Math.floor(Math.random() * topRegBalls.length);
-            let randomObject = topRegBalls[randomIndex];
-            if(!set.has(parseInt(randomObject.key))){
-            set.add(parseInt(randomObject.key));
-            }
+    async function getAI(){
+        error = false;
+        loading = true;
+        const res = await fetch('/api/ai');
+        if(res.status !== 200){
+            error = true;
+            errorText = res.statusText;
+            loading = false;
+            return;
         }
-        let redBallAdded = false;
-        while(!redBallAdded){
-            let randomIndex = Math.floor(Math.random() * topPowerBalls.length);
-            let randomObject = topPowerBalls[randomIndex];
-            if(!set.has(parseInt(randomObject.key))){
-            set.add(parseInt(randomObject.key));
-            redBallAdded = true;
-            }
+        const data = await res.json();
+        console.log("Data: ",data);
+
+        // Parse the JSON string into a JavaScript object
+        
+        const jsonObject = parseJSONFromString(data.text);
+        console.log("Text property with additional parsing checks",jsonObject);
+        if(jsonObject === undefined){
+            error = true;
+            loading = false;
+            return;
         }
-        sets.push(Array.from(set));
+        sets.push(jsonObject);
         sets = sets;
-        console.log('sets', sets);
-        }
+        loading = false;
 
-        function handleDelete(index){
+}
+
+
+    function handleDelete(index){
             sets.splice(index,1);
             sets = sets
         }
-
-    //function to calculate standard deviation
-    function stdDeviation(numbers){
-    // Step 1: Calculate the mean
-    const mean = numbers.reduce((acc, num) => acc + num, 0) / numbers.length;
-
-    // Step 2: Calculate the squared difference from the mean for each number
-    const squaredDifferences = numbers.map(num => Math.pow(num - mean, 2));
-
-    // Step 3: Calculate the mean of the squared differences
-    const meanOfSquaredDifferences = squaredDifferences.reduce((acc, num) => acc + num, 0) / numbers.length;
-
-    // Step 4: Calculate the standard deviation (square root of the mean of squared differences)
-    const std = Math.sqrt(meanOfSquaredDifferences);
-    return std.toFixed(1)
-    }
-
-
-function generateNumberSets(ballinfo, powerballinfo, std) {
-    console.log('std', std);
-    let row = [];
-
-    // Generate first 5 numbers
-    let between20and30 = 0;
-    for (let j = 0; j < 5; j++) {
-      let num = Math.floor(Math.random() * 69) + 1;
-      if (num >= 20 && num <= 30) {
-        between20and30++;
-      }
-      row.push(num);
-    }
-
-    // Tweak numbers if needed
-    if (between20and30 < 3) {
-      row = adjustNumbersToRanges(row);
-    }
-
-    // Calculate std dev
-    const stdDev = stdDeviation(row);
-
-    // Tweak numbers if std dev is off
-    if (stdDev !== std) {
-      row = adjustNumbersToStdDev(row, std);
-    }
-
-    // Row is good, add powerball and push
-
-    let lastNum = Math.floor(Math.random() * 26) + 1; 
-
-    while(row.includes(lastNum)) {
-    // Number is duplicate, get a new random number
-    lastNum = Math.floor(Math.random() * 26) + 1;
-    }
-
-    // Last num is guaranteed unique 
-    row.push(lastNum);
-    
-    sets.push(row);
-    sets = sets;
-  
-
-
-
-}
-
-function adjustNumbersToRanges(row) {
-    console.log('adjusting Numbers To Ranges', row);
-  const rangeMin = 20;
-  const rangeMax = 30;
-
-  while (getInRangeCount(row, rangeMin, rangeMax) < 3) {
-    const index = Math.floor(Math.random() * row.length); 
-
-    const newValue = getRandomNumberInRange(rangeMin, rangeMax);
-    row[index] = newValue;
-  }
-
-  return row;
-}
-function getRandomNumberInRange(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function getInRangeCount(row, min, max) {
-
-  let count = 0;
-  for (let i = 0; i <= 5; i++) {
-    if (row[i] >= min && row[i] <= max) {
-      count++;
-    }
-  }
-
-  return count;
-
-}
-
-function adjustNumbersToStdDev(row, targetStdDev) {
-    console.log('adjusting Numbers To Std Dev', row)
-    console.log('targetStdDev', targetStdDev)   
-  let currentStdDev = stdDeviation(row);
-
-  if (currentStdDev === 0) {
-    // Avoid division by zero if the current standard deviation is zero
-    stdDeviation = 1;
-  }
-  const DELTA = 0.5;
-
-  while (Math.abs(currentStdDev - targetStdDev) > DELTA){
-    console.log('currentStdDev', currentStdDev)
-
-
-    const scaleFactor = targetStdDev / currentStdDev;
-    const duplicates = {};
-
-    for (let i = 0; i < row.length; i++) {
-        const originalValue = row[i];
-        const adjustedValue = Math.round(originalValue * scaleFactor);
-        const newValue = Math.min(Math.max(adjustedValue, 1), 69);
-
-        if (duplicates[newValue]) {
-        // Duplicate value detected, replace it with a random number
-        row[i] = getRandomNumberInRange(1, 69);
-        } else {
-        row[i] = newValue;
-        duplicates[newValue] = true;
-        }
-    }
-    currentStdDev = stdDeviation(row);
-
-
-    }
-  return row;
-}
-
-//function that takes a random array element from giant array then randomly adds or removes one from each element in the array checking to be sure there are no duplicates and no numbers are less than 1 or higher than 69
-function mitchsMystery(topReg,topPb,arrays) {
-  const result = [];
-  const arr = arrays[Math.floor(Math.random() * arrays.length)];
-
-  const topRegBalls = topReg.map(num => parseInt(num.key)); 
-
-  console.log(topRegBalls)
-
-  arr.forEach((num,index) => {
-    console.log('num', num);
-    console.log('index', index);
-    let rand;
-    
-    if(num === 1) {
-      rand = 1; 
-    } else if(num === 69){
-      rand = -1;
-    } else {
-      if(topRegBalls.includes(num)) rand = 0;
-      if(index === 5 && topPb.includes(num)) rand = 0;
-      else
-      rand = Math.random() < 0.5 ? -1 : 1;
-    }
-    
-    let newNum = num + rand;
-    
-    while(result.includes(newNum) || newNum <= 0 || newNum >= 69) {
-      rand = Math.random() < 0.5 ? -1 : 1; 
-      newNum = num + rand;
-    }
-    
-    result.push(newNum);
-
-  });
-
-    sets.push(result);
-    sets = sets;
-}
 
 
 
 </script>
 
 <div class="header-wrapper">
-<h1>Welcome to the PowerBall Generator (Beta)</h1>
+<h1>Welcome to the NEW PowerBall Generator (Beta)</h1>
 <h2>This is a friends and family release.</h2>
 <h2>I wish you luck!</h2>
-<button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Set</button>
-<button on:click={generateNumberSets(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.std)}>Generate Enhanced Set</button>
-<button on:click={mitchsMystery(data.ballInfo.topRegBalls,data.ballInfo.topPowerBalls,data.ballInfo.allResults)}>Generate Set 2</button>
+<button on:click={getAI}>AI Set</button>
+
+{#if loading}
+  <div class="circle-wrapper">
+    <Circle/>
+  </div>
+
+{/if}
+
+{#if error}
+    <h2>There was an error generating the set. Please try again.</h2>
+    <small>{errorText}</small>
+{/if}
+
 
 </div>
 <div class="container-wrapper">
 
     {#each sets as set, setIndex (setIndex)}
         <div class="ball-container" >
-            {#each set as ball, index (index)}
-                <div transition:fade="{{delay: 250, duration: 300}}" class={index <5? 'ball' : 'powerball'}><span>{ball}</span></div>
+            {#each set.regularBalls as ball, index (index)}
+                <div transition:fade="{{delay: 250, duration: 300}}" class='ball'><span>{ball}</span></div>
             {/each}
+            <div transition:fade="{{delay: 250, duration: 300}}" class='powerball'><span>{set.powerball}</span></div>
             <button class="btn-delete" on:click={handleDelete(setIndex)} transition:fade="{{delay: 250, duration: 300}}" >
                 <span class="material-symbols-outlined">
                     delete
@@ -261,6 +138,16 @@ function mitchsMystery(topReg,topPb,arrays) {
         flex-direction: row;
         justify-content: space-around;
         flex-wrap: wrap;
+    }
+    .header-wrapper{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        margin-top: 1em;
+    }
+    .circle-wrapper{
+      margin-top: 1em;
     }
     .ball-container{
 
