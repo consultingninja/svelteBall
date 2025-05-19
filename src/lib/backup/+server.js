@@ -4,10 +4,7 @@ import {parse} from 'csv-parse'
 import {SECRET_AIBALL_KEY} from '$env/static/private';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { callGemini } from "../../../lib/utils/gemini";
-
-import { extractData,processCsvAndGenerateNumbers } from "./utils";
-import { predictor } from "../../../lib/utils/predictor";
+import { extractData } from "./utils";
 
 const haiku = 'claude-3-haiku-20240307';
 const sonnet = 'claude-3-5-sonnet-latest';
@@ -161,9 +158,115 @@ async function puppetScrape(startDate) {
  return data;
 }
 
+async function getAnthropicCompletion(csvData){
+  console.log("Initializing completion request... ");
+
+  try{
+    const anthropic = new Anthropic({
+      apiKey: SECRET_AIBALL_KEY, // This is the default and can be omitted
+    });
+
+    const system = `I am a supercomputer with advanced analytical capabilities, capable of super computer level analysis and predictive modeling.`;
+
+    const prompt = `Use the following system to generate 5 new sets of numbers.
+
+Re-roll Numbers: Re-roll numbers using Kolmogorov's theory of randomness until they meet the system's criteria.
+Range Consistency: Ensure that the generated numbers adhere to the same ranges used in the most recent data points.
+Predictive Accuracy: Optimize the system to maximize predictive accuracy, taking into account the weighted historical statistics and range-based filtering.
+
+Predictive Modeling and Number Generation:
+
+Using the developed system, generate the next five sets of numbers:
+
+Deliverables:
+A step by step explanation of every number generated, including your reasoning.
+
+5 sets of numbers, each consisting of 5 numbers from the first distinct range and a single number from the second distinct range.
+
+Respond in JSON with two properties one called "explanation" containing your step by step reasoning for each number and "sets" with each set containing the keys fiveNumbers and oneNumber.
+
+Data To Analyze:
+<data>
+`;
+const message = {role: 'user', content: prompt.replace('<data>', csvData)};
+  
+    const response = await anthropic.messages.create({
+      max_tokens: 4096,
+      temperature: 0.9,
+      system,
+      messages: [message],
+      model: sonnet,
+
+    });
+  
+    console.log(response.content);
+  
+    return new Response(JSON.stringify(response.content[0]), { status: 200 });
+  }
+  catch(e){
+    console.log("Anthropic Error: ", e);
+    return Error("Anthropic Error: ", e);
+  }
 
 
+}
 
+// async function getAnthropicCompletion(csvData){
+//   console.log("Initializing completion request... ");
+
+//   try{
+//     const anthropic = new Anthropic({
+//       apiKey: SECRET_AIBALL_KEY, // This is the default and can be omitted
+//     });
+  
+//     const message = await anthropic.messages.create({
+//       max_tokens: 4096,
+//       system: `You are a super llm that can analyze anything.  You find even the slightest patterns in data.  Capable of predicting future results using mathematics and analysis. You will be given a giant list of csv formatted information.  Take the information and for each record give back the results and also for each number calculate what an llm would predice the next number to be in the sequence.  Be sure to update your calculation for every record and every number. `,
+//       messages: [{ role: 'user', content: `<datatoanalyze> <${csvData}> </datatoanalyze>` }],
+//       model: haiku,
+//     });
+  
+//     console.log(message.content);
+  
+//     return new Response(JSON.stringify(message.content[0]), { status: 200 });
+//   }
+//   catch(e){
+//     console.log("Anthropic Error: ", e);
+//     return Error("Anthropic Error: ", e);
+//   }
+
+
+// }
+
+async function getPhi3Completion(csvData){
+  console.log("Initializing PHI3 completion request... ");
+
+  try{
+
+    const response = await fetch( 'http://127.0.0.1:11434/api/generate',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+      "model": 'phi3',
+      stream:false,
+      prompt: `You are a super computer.  You find even the slightest patterns in data.  Capable of predicting future results using mathematics and analysis.  Analyze the given csv-formatted data. Each record looks like this: "April 24, 2024","2,20,22,26,47",21,1 to 69,1 to 26, The record contains the following information: Date the data was created, Then 6 supposedly random numbers from a range (one range used for the first 5, and one range used for the last number), the last two pieces of each line of the csv are the ranges used when creating the supposedly random numbers.  The first range is what was used for the first 5 numbers, the second range is the one used for the last number.   Read and analyze the data. Then using any patterns you find try your best to guess the next 6 numbers using the most recentle used ranges for first 5 and last 1 respectively. Give your predicted numbers in JSON format with the keys "regularBalls" (an array of 5 numbers) and "powerball" (a single number). i.e. {"regularBalls":[7,15,24,45,68],"powerball":24} ${csvData}` ,
+    })
+
+    });
+
+    const data = await response.json();
+  
+    console.log(data.response);
+  
+    return new Response(JSON.stringify(data.response), { status: 200 });
+  }
+  catch(e){
+    console.log("Phi3 Error: ", e);
+    return Error("Phi3 Error: ", e);
+  }
+
+
+}
 
 
 
@@ -206,61 +309,25 @@ try{
       console.log("Data file updated... ");
 
       const reduceData = extractData(csvStringUpdated);
-      //filter out any arrays that have less than 6 elements
-      const filteredData = reduceData.filter(arr => arr.length >= 6);
-      //log the filtered data
-      // console.log("Filtered data: ", filteredData);
-      const predictedSets = predictor.predict(filteredData, 5);
-      //log the predicted sets
-      console.log("Predicted sets: ", predictedSets);
-      return new Response(JSON.stringify(filteredData), { status: 200 });
-      const numbersWithoutHeaders = filteredData.slice(1);
-      //Iterate through all the arrays and join them into a string formatted as "(2,20,22,26,47, 5)"
-      const formattedNumbers = numbersWithoutHeaders.map(arr => {
-        const mainNumbers = arr.slice(0, 5).join(', ');
-        const powerBall = arr[5];
-        return `(${mainNumbers}, ${powerBall})`;
-      }).join('\n');
-      console.log("Formatted numbers: ", formattedNumbers);
-      console.log("\nGenerating numbers... ");
-      const prompt = `Here is all the data required to create the system and generate the highest probability numbers for the next 5 sets of numbers.
-      ${formattedNumbers}`
-      const finalResult = await callGemini(prompt);
-      console.log("Final result: ", finalResult);
-      //return the final result
-      return new Response(JSON.stringify(finalResult), { status: 200 });
+      console.log("Reduced data: ", reduceData);
+      // return new Response(JSON.stringify(reduceData), { status: 200 });
+      return await getAnthropicCompletion(csvStringUpdated); //**uncomment this line to use the Anthropic AI model
+      //return await getPhi3Completion(csvStringUpdated);
     }
     else{
       console.log("No new entries found in the scrape...");
       //convert orginal data back to csv string after ordering
+
       const unUpdatedCsvString = convertToCSV(sortedResults.parsedData);
       const reduceData = extractData(unUpdatedCsvString);
-      //filter out any arrays that have less than 6 elements
-      const filteredData = reduceData.filter(arr => arr.length >= 6);
-      //log the filtered data
-      // console.log("Filtered data: ", filteredData);
-      const predictedSets = predictor.predict(filteredData, 5);
-      //log the predicted sets
-      console.log("Predicted sets: ", predictedSets);
-      //return the filtered data
-      return new Response(JSON.stringify(reduceData), { status: 200 });
-      const numbersWithoutHeaders = reduceData.slice(1);
-      //Iterate through all the arrays and join them into a string formatted as "(2,20,22,26,47, 5)"
-      const formattedNumbers = numbersWithoutHeaders.map(arr => {
-        const mainNumbers = arr.slice(0, 5).join(', ');
-        const powerBall = arr[5];
-        return `(${mainNumbers}, ${powerBall})`;
-      }).join('\n');
-      console.log("Formatted numbers: ", formattedNumbers);
-      console.log("\nGenerating numbers... ");
-      const prompt = `Here is all the data required to create the system and generate the highest probability numbers for the next 5 sets of numbers.
-      ${formattedNumbers}`
-      const finalResult = await callGemini(prompt);
-      console.log("Final result: ", finalResult);
-      return new Response(JSON.stringify(finalResult), { status: 200 });
+      console.log("Reduced data: ", reduceData);
+      // return new Response(JSON.stringify(extractData(unUpdatedCsvString)), { status: 200 });
+      return await getAnthropicCompletion(unUpdatedCsvString); //**uncomment this line to use the Anthropic AI model
+      //return await getPhi3Completion(unUpdatedCsvString);
     }
 
     //continue to the next step
+  
   }
   catch(e){ 
     console.log("Error parsing csv data: ", e);
@@ -289,42 +356,14 @@ catch(e){
       const csvStringSorted = convertToCSV(sortedResults.parsedData);
       //write the sorted data back to the file
       await fs.writeFile('data.csv', csvStringSorted);
-      console.log("Generating numbers... ");
-      const reduceData = extractData(csvStringSorted);
-      let sets = [];
-      while(sets.length < 5){
-        const result = processCsvAndGenerateNumbers(reduceData);
-        console.log("Result in csvStringSorted: ", result);
-        const newSet = {
-          regularBalls: result.slice(0,5),
-          powerBall: result[5]
-        }
-        sets.push(newSet);
-      }
-      const result = {
-        sets: sets,
-      }
-      return new Response(JSON.stringify(result), { status: 200 });
+      return await getAnthropicCompletion(csvStringSorted); //**uncomment this line to use the Anthropic AI model
+      // return await getPhi3Completion(csvStringSorted);
     }
 
-    console.log("Generating numbers... ");
-    const reduceData = extractData(csvString);
-
-    let sets = [];
-    while(sets.length < 5){
-      const result = processCsvAndGenerateNumbers(reduceData);
-      console.log("Result in csvString: ", result);
-      const newSet = {
-        regularBalls: result.slice(0,5),
-        powerBall: result[5]
-      }
-      sets.push(newSet);
-    }
-    const result = {
-      sets: sets,
-    }
-    return new Response(JSON.stringify(result), { status: 200 }); 
-
+    console.log("Getting Anthropic completion...");
+    return await getAnthropicCompletion(csvString); //**uncomment this line to use the Anthropic AI model
+    // console.log("Getting Phi3 completion...");
+    // return await getPhi3Completion(csvStringSorted);
   } catch (error) {
     console.log("Error:", error);
     return new Response("Error parsing data or generating response: ", { status: 500 });

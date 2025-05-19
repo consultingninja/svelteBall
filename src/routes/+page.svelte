@@ -3,6 +3,7 @@
     import Circle from '$lib/circle/circle.svelte';
 
     let sets = [];
+    let explanation = '';
     let error = false;
     let errorText = '';
     let loading = false;
@@ -52,17 +53,33 @@
         const data = await res.json();
         console.log("Data: ",data);
 
+        sets = [...data.sets];
+        loading = false;
+        return;
+
+        
+
         // Parse the JSON string into a JavaScript object
         
-        const jsonObject = parseJSONFromString(data.text);
+        const jsonObject = parseJSONFromString(data);
         console.log("Text property with additional parsing checks",jsonObject);
         if(jsonObject === undefined){
             error = true;
             loading = false;
             return;
         }
-        sets.push(jsonObject);
-        sets = sets;
+        // Check for sets property
+        if(!jsonObject.hasOwnProperty('sets')){
+            error = true;
+            loading = false;
+            return;
+        }
+        sets = [...jsonObject.sets];
+
+        // Check for explanation property
+        if(jsonObject.hasOwnProperty('explanation')){
+            explanation = jsonObject.explanation;
+        }
         loading = false;
 
 }
@@ -104,7 +121,7 @@
             {#each set.regularBalls as ball, index (index)}
                 <div transition:fade="{{delay: 250, duration: 300}}" class='ball'><span>{ball}</span></div>
             {/each}
-            <div transition:fade="{{delay: 250, duration: 300}}" class='powerball'><span>{set.powerball}</span></div>
+            <div transition:fade="{{delay: 250, duration: 300}}" class='powerball'><span>{set.powerBall}</span></div>
             <button class="btn-delete" on:click={handleDelete(setIndex)} transition:fade="{{delay: 250, duration: 300}}" >
                 <span class="material-symbols-outlined">
                     delete
@@ -112,6 +129,10 @@
             </button>
         </div>
     {/each}
+
+    <div>
+        <p>{explanation}</p>
+    </div>
 
 </div>
 
