@@ -163,7 +163,7 @@ export class DataRetriever {
 
       // ---- At this point, file existed and contained processable data ----
       console.log(`Scraping for new data entries for '${this.filePath}' since: ${mostRecentDateFromFile || 'the beginning (no valid last date found)'}.`);
-      const newRawData = await puppetScrape(mostRecentDateFromFile);
+      const newRawData = await puppetScrape(new Date(mostRecentDateFromFile));
 
       let newUniqueItemsAdded = false;
       // Start with current sorted data; new items will be added and then the whole list re-sorted if needed.

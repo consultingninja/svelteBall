@@ -16,17 +16,22 @@ import { extractData } from "../../routes/api/ai/utils.js";
 
 async function Run()
 {
-const dataRetriever = new DataRetriever('data.csv');
+const dataRetriever = new DataRetriever('recentData.csv');
 
 // Get or create CSV data
 const result = await dataRetriever.getOrCreateData();
 const csvData = result.csvData;
+// Convert our CSV string into an array of arrays
+const extractedData = extractData(csvData);
+console.log("Extracted Data:", extractedData);
+
+//Iterate through the csvData and convert from "May 26, 2025","7, 13, 27, 29, 67",8 to our desired format ["2024-01-15", "7", "21", "35", "49", "63", "19"]
+console.log("CSV Data retrieved successfully. Processing...");
+const processedData = extractedData;
+
+
 
 console.log("Processing data for predictions...");
-
-// Extract and filter data
-const extractedData = extractData(csvData);
-const filteredData = extractedData.filter(arr => arr.length >= 6);
 
 // Create Kolmogorov-compliant predictor
 const kolmogorovPredictor = createKolmogorovCompliantPredictor(improvedPredictor);
@@ -35,7 +40,7 @@ console.log("=== Kolmogorov-Compliant Lottery Predictions ===\n");
 
 // 1. Generate predictions with auto-calibrated threshold
 console.log("1. Auto-calibrated predictions:");
-const predictions = kolmogorovPredictor.predict(filteredData, 5, { 
+const predictions = kolmogorovPredictor.predict(processedData, 5, { 
     autoCalibrate: true,
     favorHot: true 
 });
@@ -65,7 +70,7 @@ const strategies = ['linear', 'exponential', 'logarithmic', 'recency','uniform']
 
 strategies.forEach(strategy => {
     improvedPredictor.setWeightingStrategy(strategy);
-    const strategyPredictions = kolmogorovPredictor.predict(filteredData, 3, {
+    const strategyPredictions = kolmogorovPredictor.predict(processedData, 3, {
         autoCalibrate: true
     });
     
@@ -84,7 +89,7 @@ const thresholds = [0.5, 0.7, 0.9];
 
 thresholds.forEach(threshold => {
     kolmogorovPredictor.setConfig({ randomnessThreshold: threshold });
-    const strictPredictions = kolmogorovPredictor.predict(filteredData, 3, {
+    const strictPredictions = kolmogorovPredictor.predict(processedData, 3, {
         autoCalibrate: false
     });
     
@@ -98,14 +103,14 @@ thresholds.forEach(threshold => {
 
 // 5. Validate that historical draws pass randomness tests
 console.log("\n5. Historical draw randomness validation:");
-const historicalRandomness = filteredData.slice(0, 5).map(draw => {
+const historicalRandomness = processedData.slice(0, 5).map(draw => {
     const numbers = draw.slice(1).map(Number);
     const predictor = new ( import('./kolmogorovLotteryPredictor.js')).KolmogorovLotteryPredictor();
     return predictor.calculateRandomnessScore(numbers);
 });
 
 historicalRandomness.forEach((score, idx) => {
-    console.log(`\nHistorical draw ${idx + 1}: ${filteredData[idx][0]}`);
+    console.log(`\nHistorical draw ${idx + 1}: ${processedData[idx][0]}`);
     console.log(`  Overall randomness: ${score.overall.toFixed(3)}`);
     console.log(`  Passes default threshold (0.7): ${score.overall >= 0.7 ? '✓' : '✗'}`);
 });
@@ -128,11 +133,11 @@ patternedSequences.forEach((seq, idx) => {
 // 7. Performance impact of randomness constraint
 console.log("\n7. Performance comparison:");
 console.time("Without randomness constraint");
-const normalPredictions = improvedPredictor.predict(filteredData, 100);
+const normalPredictions = improvedPredictor.predict(processedData, 100);
 console.timeEnd("Without randomness constraint");
 
 console.time("With randomness constraint");
-const constrainedPredictions = kolmogorovPredictor.predict(filteredData, 100, {
+const constrainedPredictions = kolmogorovPredictor.predict(processedData, 100, {
     autoCalibrate: true
 });
 console.timeEnd("With randomness constraint");
@@ -150,7 +155,7 @@ console.log(`  Predictions below threshold: ${belowThresholdCount}`);
 
 // 8. Find the "most random" historical draw
 console.log("\n8. Most and least random historical draws:");
-const allHistoricalScores = filteredData.map((draw, idx) => {
+const allHistoricalScores = processedData.map((draw, idx) => {
     const numbers = draw.slice(1).map(Number);
     const score = predictor.calculateRandomnessScore(numbers);
     return { date: draw[0], numbers, score: score.overall, index: idx };
