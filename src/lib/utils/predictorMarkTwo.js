@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-class ImprovedLotteryPredictor {
+export class ImprovedLotteryPredictor {
     constructor(config = {}) {
         this.config = {
             regularBalls: { min: 1, max: 69, count: 5 },

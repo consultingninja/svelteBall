@@ -53,7 +53,7 @@
         const data = await res.json();
         console.log("Data: ",data);
 
-        sets = [...data.sets];
+        sets = [...data];
         loading = false;
         return;
 
@@ -118,10 +118,10 @@
 
     {#each sets as set, setIndex (setIndex)}
         <div class="ball-container" >
-            {#each set.regularBalls as ball, index (index)}
+            {#each set.regular_balls as ball, index (index)}
                 <div transition:fade="{{delay: 250, duration: 300}}" class='ball'><span>{ball}</span></div>
             {/each}
-            <div transition:fade="{{delay: 250, duration: 300}}" class='powerball'><span>{set.powerBall}</span></div>
+            <div transition:fade="{{delay: 250, duration: 300}}" class='powerball'><span>{set.powerball}</span></div>
             <button class="btn-delete" on:click={handleDelete(setIndex)} transition:fade="{{delay: 250, duration: 300}}" >
                 <span class="material-symbols-outlined">
                     delete

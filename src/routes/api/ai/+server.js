@@ -1,337 +1,57 @@
-import  puppeteer  from "puppeteer";
-import fs from "fs/promises";
-import {parse} from 'csv-parse'
-import {SECRET_AIBALL_KEY} from '$env/static/private';
-import Anthropic from '@anthropic-ai/sdk';
 
-import { callGemini } from "../../../lib/utils/gemini";
 
-import { extractData,processCsvAndGenerateNumbers } from "./utils";
-import { predictor } from "../../../lib/utils/predictor";
+import { extractData } from "./utils.js";
+import { sweetSpotPredictor } from "../../../lib/utils/SweetSpot.js";
+import { DataRetriever } from "../../../lib/utils/dataRetriever.js";
 
-const haiku = 'claude-3-haiku-20240307';
-const sonnet = 'claude-3-5-sonnet-latest';
-const opus = 'claude-3-opus-20240229';
-
-// Define a function to read the last date from a CSV file containing data
-async function getOrderLastDate(csvData) {
-  const parsedData = await new Promise((resolve, reject) => {
-    parse(csvData, { columns: true }, (err, output) => {
-      if (err) reject(err);
-      else {
-        output.forEach(row => {
-          if (row.regularBalls) {
-            row.regularBalls = row.regularBalls.split(',').map(Number);
-          }
-        });
-        resolve(output);
+export async function GET() {
+  try {
+    const dataRetriever = new DataRetriever('data.csv');
+    
+    // Get or create CSV data
+    const result = await dataRetriever.getOrCreateData();
+    const csvData = result.csvData;
+    
+    console.log("Processing data for predictions...");
+    
+    // Extract and filter data
+    const extractedData = extractData(csvData);
+    const filteredData = extractedData.filter(arr => arr.length >= 6);
+    
+    if (filteredData.length === 0) {
+      console.warn("No valid data found for predictions");
+      return new Response(
+        JSON.stringify({ error: "Insufficient data for predictions" }), 
+        { status: 400 }
+      );
+    }
+    
+    // Generate predictions
+    const predictedSets = sweetSpotPredictor.predict(filteredData, 5);
+    console.log("Generated predictions:", predictedSets);
+    
+    return new Response(JSON.stringify(predictedSets), { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
       }
     });
-  });
-
-  // Keep a copy of the original data
-  const originalData = [...parsedData];
-
-  // Sort the data chronologically based on the date
-  parsedData.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateA - dateB;
-  });
-
-  // Check if the order has changed
-  const changed = JSON.stringify(originalData) !== JSON.stringify(parsedData);
-
-  // Return the last date
-  const lastDate = parsedData[parsedData.length - 1].date;
-  return { lastDate, parsedData, changed };
-}
-
-function convertToCSV(data) {
-  function escapeCSVField(field) {
-    if (typeof field === 'string' && field.includes(',')) {
-      return '"' + field.replace(/"/g, '""') + '"';
-    }
-    return field;
-  }
-
-  const headers = Object.keys(data[0]);
-
-  const csvLines = data.map(obj => {
-    return headers.map(header => {
-      let value = obj[header];
-      if (header === 'regularBalls' && Array.isArray(value)) {
-        value = value.join(',');
-      }
-      return escapeCSVField(value);
-    }).join(',');
-  });
-
-  const headerLine = headers.join(',');
-  return headerLine + '\n' + csvLines.join('\n');
-}
-
-
-
-async function puppetScrape(startDate) {
- //make a date variable that is today in the following format: "April 22, 1992"
- const today = new Date();
-
- //pull out year from the date variable
- const todaysYear = today.getFullYear();
-
- const ruleSets = [
-     { dateRange: { start: new Date("April 22, 1992"), end: new Date("January 15, 2012") }, mainNumberPool: "1 to 45", powerballPool: "1 to 45" },
-     { dateRange: { start: new Date("January 15, 2012"), end: new Date("October 7, 2015") }, mainNumberPool: "1 to 59", powerballPool: "1 to 35" },
-     { dateRange: { start: new Date("October 7, 2015"), end: today }, mainNumberPool: "1 to 69", powerballPool: "1 to 26" }
- ];
-
- const data = [];
- let year = startDate ? startDate.getFullYear() : 1992;
-
- const browser = await puppeteer.launch();
- const page = await browser.newPage();
-
- while (year <= todaysYear) {
-     console.log("Scraping data for year: ", year);
-     const currentReq = `https://www.powerball.net/archive/${year}`;
-     await page.goto(currentReq);
-
-     const dates = await page.$$('.archive-box');
-
-     for (const date of dates) {
-         let dateText = await date.evaluate(node => node.innerText.trim());
-         dateText = dateText.split('\n')[0]; // Extracting only the date portion
-         //if we are doing an updated scrape we need to check for start date and be sure to exclude if the date matches
-          if(startDate && new Date(dateText) <= startDate){
-            console.log("Skipping already scraped date: ", dateText);
-            continue;
-          }
-         const ballsContainer = await date.$$('.balls');
-         const regularBalls = await ballsContainer[0].$$eval('.ball', balls => balls.map(ball => parseInt(ball.textContent)));
-         const powerBall = await ballsContainer[0].$eval('.powerball', ball => parseInt(ball.textContent));
-         let doublePlayResult = null;
-
-         if (ballsContainer.length > 1) {
-             const doublePlayRegularBalls = await ballsContainer[1].$$eval('.ball', balls => balls.map(ball => parseInt(ball.textContent)));
-             const doublePlayPowerBall = await ballsContainer[1].$eval('.powerball', ball => parseInt(ball.textContent));
-
-             doublePlayResult = {
-                date: dateText,
-                regularBalls: doublePlayRegularBalls,
-                powerball: doublePlayPowerBall,
-             };
-         }
-
-         // Find the rule set that applies to this date
-         const ruleSet = ruleSets.find(rule => {
-             const currentDate = new Date(dateText);
-             return currentDate >= rule.dateRange.start && currentDate < rule.dateRange.end;
-         });
-
-         console.log("Rule set: ", JSON.stringify({
-             date: dateText,
-             regularBalls: regularBalls,
-             powerball: powerBall,
-             mainNumberPool: ruleSet.mainNumberPool,
-             powerballPool: ruleSet.powerballPool,
-         }));
-
-         data.push({
-             date: dateText,
-             regularBalls: regularBalls,
-             powerball: powerBall,
-             mainNumberPool: ruleSet.mainNumberPool,
-             powerballPool: ruleSet.powerballPool,
-         });
-         if (doublePlayResult) {
-             data.push({...doublePlayResult, mainNumberPool: ruleSet.mainNumberPool, powerballPool: ruleSet.powerballPool});
-         }
-     }
-
-     year++;
-
- }
-
- await browser.close();
-
- console.log('Data scraped successfully');
- //sort the data by date
-  data.sort((a, b) => new Date(a.date) - new Date(b.date));
- return data;
-}
-
-
-
-
-
-
-
-export async function GET(){
-
-try{
-  console.log("Reading csv file...");
-  //open csv file and read it
-  const csvData = await fs.readFile('data.csv', 'utf8');
-
-  //if the file exists but is empty throw an error so we can replace it with new data
-  if(csvData.length === 0){
-    throw new Error("Empty file");
-  }
-
-  try{
-    console.log("Ordering data and finding last file date...");
-    //order the csv data by date and return the last date
-    const sortedResults = await getOrderLastDate(csvData);
-    //get the last date
-    const startDate = new Date(sortedResults.lastDate)
-    console.log("Starting updating scrape from: ", startDate);
-    //initialize a new scrape from the last date, this will potentially return overlapping data
-    const updateScrapedData = await puppetScrape(startDate);
-    //count the number of entries in the new data
-    const numberOfEntries = updateScrapedData.length;
-
-    if(numberOfEntries > 0){
-      console.log(`${numberOfEntries} new entries found adding to file... `, updateScrapedData)
-      //convert the new data to a csv string
-      const csvString = convertToCSV(updateScrapedData);
-      //order the new data by date
-      const sortedUpdateResults = await getOrderLastDate(csvString);
-      //add the new csv data to the end of the old csv data
-      const updatedCsvData = sortedResults.parsedData.concat(sortedUpdateResults.parsedData);
-      //convert the updated records back into a csv string
-      const csvStringUpdated = convertToCSV(updatedCsvData);
-      //write the updated data back to the file
-      await fs.writeFile('data.csv', csvStringUpdated);
-      console.log("Data file updated... ");
-
-      const reduceData = extractData(csvStringUpdated);
-      //filter out any arrays that have less than 6 elements
-      const filteredData = reduceData.filter(arr => arr.length >= 6);
-      //log the filtered data
-      // console.log("Filtered data: ", filteredData);
-      const predictedSets = predictor.predict(filteredData, 5);
-      //log the predicted sets
-      console.log("Predicted sets: ", predictedSets);
-      return new Response(JSON.stringify(filteredData), { status: 200 });
-      const numbersWithoutHeaders = filteredData.slice(1);
-      //Iterate through all the arrays and join them into a string formatted as "(2,20,22,26,47, 5)"
-      const formattedNumbers = numbersWithoutHeaders.map(arr => {
-        const mainNumbers = arr.slice(0, 5).join(', ');
-        const powerBall = arr[5];
-        return `(${mainNumbers}, ${powerBall})`;
-      }).join('\n');
-      console.log("Formatted numbers: ", formattedNumbers);
-      console.log("\nGenerating numbers... ");
-      const prompt = `Here is all the data required to create the system and generate the highest probability numbers for the next 5 sets of numbers.
-      ${formattedNumbers}`
-      const finalResult = await callGemini(prompt);
-      console.log("Final result: ", finalResult);
-      //return the final result
-      return new Response(JSON.stringify(finalResult), { status: 200 });
-    }
-    else{
-      console.log("No new entries found in the scrape...");
-      //convert orginal data back to csv string after ordering
-      const unUpdatedCsvString = convertToCSV(sortedResults.parsedData);
-      const reduceData = extractData(unUpdatedCsvString);
-      //filter out any arrays that have less than 6 elements
-      const filteredData = reduceData.filter(arr => arr.length >= 6);
-      //log the filtered data
-      // console.log("Filtered data: ", filteredData);
-      const predictedSets = predictor.predict(filteredData, 5);
-      //log the predicted sets
-      console.log("Predicted sets: ", predictedSets);
-      //return the filtered data
-      return new Response(JSON.stringify(reduceData), { status: 200 });
-      const numbersWithoutHeaders = reduceData.slice(1);
-      //Iterate through all the arrays and join them into a string formatted as "(2,20,22,26,47, 5)"
-      const formattedNumbers = numbersWithoutHeaders.map(arr => {
-        const mainNumbers = arr.slice(0, 5).join(', ');
-        const powerBall = arr[5];
-        return `(${mainNumbers}, ${powerBall})`;
-      }).join('\n');
-      console.log("Formatted numbers: ", formattedNumbers);
-      console.log("\nGenerating numbers... ");
-      const prompt = `Here is all the data required to create the system and generate the highest probability numbers for the next 5 sets of numbers.
-      ${formattedNumbers}`
-      const finalResult = await callGemini(prompt);
-      console.log("Final result: ", finalResult);
-      return new Response(JSON.stringify(finalResult), { status: 200 });
-    }
-
-    //continue to the next step
-  }
-  catch(e){ 
-    console.log("Error parsing csv data: ", e);
-    return new Response("Error parsing data or generating response: ", { status: 500 });
-  }
-
-
-}
-catch(e){
-  console.log("Error reading csv file: \n");
-  try {
-    console.log("Initializing new scrape...\n");
-    //initialize a new scrape to create a new file
-    const scrapedData = await puppetScrape();
-    console.log("Converting to csv ");
-    const csvString = convertToCSV(scrapedData);
-    console.log("Data converted writing to file... ");
-    //write csv string to a file
-    await fs.writeFile('data.csv', csvString);
-    console.log("Data written to file... ");
-    console.log("Parsing and ordering csv data...");
-    //order the csv data by date
-    const sortedResults = await getOrderLastDate(csvString);
-    console.log("Last line: ", sortedResults.lastDate);
-    if(sortedResults.changed){
-      const csvStringSorted = convertToCSV(sortedResults.parsedData);
-      //write the sorted data back to the file
-      await fs.writeFile('data.csv', csvStringSorted);
-      console.log("Generating numbers... ");
-      const reduceData = extractData(csvStringSorted);
-      let sets = [];
-      while(sets.length < 5){
-        const result = processCsvAndGenerateNumbers(reduceData);
-        console.log("Result in csvStringSorted: ", result);
-        const newSet = {
-          regularBalls: result.slice(0,5),
-          powerBall: result[5]
-        }
-        sets.push(newSet);
-      }
-      const result = {
-        sets: sets,
-      }
-      return new Response(JSON.stringify(result), { status: 200 });
-    }
-
-    console.log("Generating numbers... ");
-    const reduceData = extractData(csvString);
-
-    let sets = [];
-    while(sets.length < 5){
-      const result = processCsvAndGenerateNumbers(reduceData);
-      console.log("Result in csvString: ", result);
-      const newSet = {
-        regularBalls: result.slice(0,5),
-        powerBall: result[5]
-      }
-      sets.push(newSet);
-    }
-    const result = {
-      sets: sets,
-    }
-    return new Response(JSON.stringify(result), { status: 200 }); 
-
+    
   } catch (error) {
-    console.log("Error:", error);
-    return new Response("Error parsing data or generating response: ", { status: 500 });
+    console.error("Error in GET handler:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: "Failed to generate predictions",
+        message: error.message 
+      }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
-
-}
-
 }
 
 

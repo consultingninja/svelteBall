@@ -1,4 +1,4 @@
-import { improvedPredictor, ImprovedLotteryPredictor } from './predictorMarkTwo.js';
+import { ImprovedLotteryPredictor } from './predictorMarkTwo.js';
 import { createKolmogorovCompliantPredictor } from './Kolmogorov.js';
 import { DataRetriever } from "./dataRetriever.js";
 import { extractData } from "../../routes/api/ai/utils.js";
@@ -52,6 +52,8 @@ async function Run() {
             console.log(`  Generation Attempts: ${pred.generation_attempts}`);
             if (pred.was_perturbed) console.log(`  ⚡ Perturbed for randomness`);
             if (pred.below_threshold) console.log(`  ⚠️  Below threshold (best available)`);
+            if (pred.critical_failure) console.log(`  🚨 Critical pattern detected`);
+            if (pred.veto_applied) console.log(`  ⛔ Score capped by veto system`);
         });
 
         // 7. Detailed randomness analysis
@@ -107,66 +109,83 @@ async function Run() {
         const { KolmogorovLotteryPredictor } = await import('./Kolmogorov.js');
         const validator = new KolmogorovLotteryPredictor();
         
-        const historicalSample = extractedData.slice(0, 5);
+        // Skip the first row if it's malformed (often happens with CSV headers)
+        let historicalSample = extractedData.slice(0, 6); // Get 6 to ensure we have 5 good ones
         console.log("🔍 Debug - Sample historical data structure:", historicalSample[0]);
         
-        historicalSample.forEach((draw, idx) => {
+        let validDraws = 0;
+        for (let idx = 0; idx < historicalSample.length && validDraws < 5; idx++) {
+            const draw = historicalSample[idx];
             console.log(`🔍 Debug - Raw draw ${idx + 1}:`, draw);
             
-            // More robust number extraction
-            let numbers;
-            if (Array.isArray(draw)) {
-                // If draw is array, skip first element (date) and convert rest to numbers
-                numbers = draw.slice(1).map(val => {
-                    const num = Number(val);
-                    return isNaN(num) ? 0 : num;
-                }).filter(num => num > 0); // Remove invalid numbers
-            } else {
-                console.warn(`⚠️  Unexpected data format for draw ${idx + 1}:`, typeof draw);
-                return;
+            // Skip if date is not a proper date string
+            if (!draw || !Array.isArray(draw) || draw.length < 7 || 
+                draw[0] === 'date' || draw[0] === '' || draw[0] === undefined) {
+                console.log(`⚠️  Skipping malformed draw ${idx + 1}`);
+                continue;
             }
+            
+            // More robust number extraction
+            const numbers = draw.slice(1).map(val => {
+                const num = Number(val);
+                return isNaN(num) ? 0 : num;
+            }).filter(num => num > 0); // Remove invalid numbers
             
             console.log(`🔍 Debug - Parsed numbers for draw ${idx + 1}:`, numbers);
             
             if (numbers.length < 6) {
                 console.warn(`⚠️  Insufficient numbers in draw ${idx + 1}: only ${numbers.length} found`);
-                return;
+                continue;
             }
             
-            const score = validator.calculateRandomnessScore(numbers);
+            validDraws++;
+            const result = validator.calculateRandomnessScore(numbers);
             
-            console.log(`\n📅 Historical draw ${idx + 1}: ${draw[0]}`);
+            console.log(`\n📅 Historical draw ${validDraws}: ${draw[0]}`);
             console.log(`  🎲 Numbers: ${numbers.slice(0, -1).join(', ')} | ${numbers[numbers.length - 1]}`);
-            console.log(`  📊 Overall randomness: ${score.overall.toFixed(3)}`);
-            console.log(`  📋 Gap Analysis: ${score.details.gapAnalysis.toFixed(3)}`);
-            console.log(`  🔍 Pattern Detection: ${score.details.patternDetection.toFixed(3)}`);
-            console.log(`  ${score.overall >= 0.7 ? '✅' : '❌'} Passes default threshold (0.7)`);
-        });
+            console.log(`  📊 Overall randomness: ${result.overall.toFixed(3)}`);
+            console.log(`  📏 Gap Analysis: ${result.details.gapAnalysis.toFixed(3)}`);
+            console.log(`  🔍 Pattern Detection: ${result.details.patternDetection.toFixed(3)}`);
+            console.log(`  ${result.overall >= 0.7 ? '✅' : '❌'} Passes default threshold (0.7)`);
+            
+            if (result.criticalFailure) {
+                console.log(`  🚨 Critical pattern detected in historical draw!`);
+            }
+        }
 
-        // 11. Pattern testing - Now with strengthened tests
-        console.log("\n🔍 NON-RANDOM PATTERN TESTING (Should ALL Fail Now!)");
+        // 11. Pattern testing - Now with VETO system
+        console.log("\n🔍 NON-RANDOM PATTERN TESTING (With VETO System!)");
         const patternedSequences = [
             { name: "Sequential", seq: [1, 2, 3, 4, 5, 6] },
-            { name: "Multiples of 10", seq: [10, 20, 30, 40, 50, 10] },
-            { name: "Multiples of 7", seq: [7, 14, 21, 28, 35, 7] },
+            { name: "Multiples of 10", seq: [10, 20, 30, 40, 50, 60] }, 
+            { name: "Multiples of 7", seq: [7, 14, 21, 28, 35, 42] },   
             { name: "All odd", seq: [1, 3, 5, 7, 9, 11] },
             { name: "Arithmetic +5", seq: [5, 10, 15, 20, 25, 30] },
             { name: "Powers of 2", seq: [2, 4, 8, 16, 32, 64] },
-            { name: "Same gaps", seq: [3, 7, 11, 15, 19, 23] }
+            { name: "Same gaps +4", seq: [3, 7, 11, 15, 19, 23] },
+            { name: "Round numbers", seq: [10, 20, 30, 40, 50, 60] }
         ];
 
         patternedSequences.forEach(({ name, seq }) => {
-            const score = validator.calculateRandomnessScore(seq);
-            const shouldFail = score.overall < 0.5; // Stricter threshold for obvious patterns
+            const result = validator.calculateRandomnessScore(seq);
+            const shouldFail = result.overall < 0.5;
             
             console.log(`\n🔢 ${name} (${seq.join(', ')}):`);
-            console.log(`  📊 Overall Score: ${score.overall.toFixed(3)} ${shouldFail ? '❌ FAILS' : '⚠️  PASSES (PROBLEM!)'}`);
-            console.log(`  📋 Gap Analysis: ${score.details.gapAnalysis.toFixed(3)}`);
-            console.log(`  🔍 Pattern Detection: ${score.details.patternDetection.toFixed(3)}`);
-            console.log(`  🔄 Duplicate Analysis: ${score.details.duplicateAnalysis.toFixed(3)}`);
+            console.log(`  📊 Overall Score: ${result.overall.toFixed(3)} ${shouldFail ? '❌ FAILS' : '⚠️  PASSES (PROBLEM!)'}`);
+            console.log(`  📏 Gap Analysis: ${result.details.gapAnalysis.toFixed(3)}`);
+            console.log(`  🔍 Pattern Detection: ${result.details.patternDetection.toFixed(3)}`);
+            console.log(`  🔄 Duplicate Analysis: ${result.details.duplicateAnalysis.toFixed(3)}`);
+            
+            // Show if veto system activated
+            if (result.criticalFailure) {
+                console.log(`  🚨 CRITICAL PATTERN DETECTED - Veto system activated!`);
+            }
+            if (result.vetoApplied) {
+                console.log(`  ⛔ SCORE CAPPED due to obvious patterns`);
+            }
             
             if (!shouldFail) {
-                console.log(`  ⚠️  WARNING: This obvious pattern should fail but scored ${score.overall.toFixed(3)}`);
+                console.log(`  ⚠️  WARNING: This obvious pattern should fail but scored ${result.overall.toFixed(3)}`);
             }
         });
 
@@ -175,17 +194,22 @@ async function Run() {
         const randomLookingSequences = [
             { name: "Typical lottery", seq: [7, 23, 41, 52, 63, 18] },
             { name: "Mixed spread", seq: [12, 35, 8, 67, 29, 4] },
-            { name: "No obvious pattern", seq: [15, 38, 7, 61, 29, 11] }
+            { name: "No obvious pattern", seq: [15, 38, 7, 61, 29, 11] },
+            { name: "Good distribution", seq: [3, 19, 31, 48, 65, 12] }
         ];
 
         randomLookingSequences.forEach(({ name, seq }) => {
-            const score = validator.calculateRandomnessScore(seq);
-            const passes = score.overall >= 0.5;
+            const result = validator.calculateRandomnessScore(seq);
+            const passes = result.overall >= 0.5;
             
             console.log(`\n🎲 ${name} (${seq.join(', ')}):`);
-            console.log(`  📊 Overall Score: ${score.overall.toFixed(3)} ${passes ? '✅ PASSES' : '❌ FAILS'}`);
-            console.log(`  📋 Gap Analysis: ${score.details.gapAnalysis.toFixed(3)}`);
-            console.log(`  🔍 Pattern Detection: ${score.details.patternDetection.toFixed(3)}`);
+            console.log(`  📊 Overall Score: ${result.overall.toFixed(3)} ${passes ? '✅ PASSES' : '❌ FAILS'}`);
+            console.log(`  📏 Gap Analysis: ${result.details.gapAnalysis.toFixed(3)}`);
+            console.log(`  🔍 Pattern Detection: ${result.details.patternDetection.toFixed(3)}`);
+            
+            if (result.criticalFailure) {
+                console.log(`  ⚠️  Note: Critical failure detected but may still pass overall`);
+            }
         });
 
         // 12. Performance comparison
@@ -219,38 +243,40 @@ async function Run() {
         console.log("🔍 Debug - Sample data structure:", extractedData[0]);
         
         const allHistoricalScores = extractedData.map((draw, idx) => {
-            // More robust number extraction
-            let numbers;
-            if (Array.isArray(draw)) {
-                numbers = draw.slice(1).map(val => {
-                    const num = Number(val);
-                    return isNaN(num) ? 0 : num;
-                }).filter(num => num > 0);
-            } else {
-                console.warn(`⚠️  Skipping invalid draw ${idx + 1}:`, typeof draw);
+            // Skip malformed entries
+            if (!draw || !Array.isArray(draw) || draw.length < 7 || 
+                draw[0] === 'date' || draw[0] === '' || draw[0] === undefined) {
                 return null;
             }
+            
+            // More robust number extraction
+            const numbers = draw.slice(1).map(val => {
+                const num = Number(val);
+                return isNaN(num) ? 0 : num;
+            }).filter(num => num > 0);
             
             if (numbers.length < 6) {
-                console.warn(`⚠️  Skipping draw ${idx + 1}: insufficient numbers (${numbers.length})`);
                 return null;
             }
             
-            const score = validator.calculateRandomnessScore(numbers);
+            const result = validator.calculateRandomnessScore(numbers);
             return { 
                 date: draw[0], 
                 numbers, 
-                score: score.overall, 
+                score: result.overall, 
                 index: idx,
-                details: score.details
+                details: result.details,
+                criticalFailure: result.criticalFailure,
+                vetoApplied: result.vetoApplied
             };
-        }).filter(item => item !== null); // Remove invalid entries
+        }).filter(item => item !== null && !isNaN(item.score)); // Remove invalid entries and NaN scores
 
         if (allHistoricalScores.length === 0) {
             console.error("❌ No valid historical data found for analysis");
             return;
         }
 
+        console.log(`✅ Found ${allHistoricalScores.length} valid historical draws for analysis`);
         allHistoricalScores.sort((a, b) => b.score - a.score);
         
         const mostRandom = allHistoricalScores[0];
@@ -259,14 +285,29 @@ async function Run() {
         console.log(`\n🥇 Most random: ${mostRandom.date}`);
         console.log(`  🎲 Numbers: ${mostRandom.numbers.slice(0, -1).join(', ')} | ${mostRandom.numbers[mostRandom.numbers.length - 1]}`);
         console.log(`  📊 Overall Score: ${mostRandom.score.toFixed(3)}`);
-        console.log(`  📋 Gap Analysis: ${mostRandom.details.gapAnalysis.toFixed(3)}`);
+        console.log(`  📏 Gap Analysis: ${mostRandom.details.gapAnalysis.toFixed(3)}`);
         console.log(`  🔍 Pattern Detection: ${mostRandom.details.patternDetection.toFixed(3)}`);
 
         console.log(`\n🥉 Least random: ${leastRandom.date}`);
         console.log(`  🎲 Numbers: ${leastRandom.numbers.slice(0, -1).join(', ')} | ${leastRandom.numbers[leastRandom.numbers.length - 1]}`);
         console.log(`  📊 Overall Score: ${leastRandom.score.toFixed(3)}`);
-        console.log(`  📋 Gap Analysis: ${leastRandom.details.gapAnalysis.toFixed(3)}`);
+        console.log(`  📏 Gap Analysis: ${leastRandom.details.gapAnalysis.toFixed(3)}`);
         console.log(`  🔍 Pattern Detection: ${leastRandom.details.patternDetection.toFixed(3)}`);
+        
+        if (leastRandom.criticalFailure) {
+            console.log(`  🚨 Critical pattern detected in least random draw!`);
+        }
+        if (leastRandom.vetoApplied) {
+            console.log(`  ⛔ Score was capped due to obvious patterns`);
+        }
+        
+        // Count draws with critical failures
+        const criticalFailureCount = allHistoricalScores.filter(item => item.criticalFailure).length;
+        const vetoAppliedCount = allHistoricalScores.filter(item => item.vetoApplied).length;
+        
+        console.log(`\n🚨 Pattern Detection Summary:`);
+        console.log(`  Critical failures detected: ${criticalFailureCount}/${allHistoricalScores.length} (${(criticalFailureCount/allHistoricalScores.length*100).toFixed(1)}%)`);
+        console.log(`  Veto system applied: ${vetoAppliedCount}/${allHistoricalScores.length} (${(vetoAppliedCount/allHistoricalScores.length*100).toFixed(1)}%)`);
         
         // Show distribution of scores
         const scoreRanges = {
