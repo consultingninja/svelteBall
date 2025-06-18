@@ -589,7 +589,7 @@ export function createKolmogorovCompliantPredictor(basePredictor) {
                 
                 const prediction = kolmogorovPredictor.generateWithRandomnessConstraint(
                     () => {
-                        // FIXED: Use the public predict method instead of private _generateSingleSet
+                        
                         console.log("📞 Calling base predictor with single prediction...");
                         const basePredictions = basePredictor.predict(historicalData, 1, options);
                         console.log("📨 Base prediction received:", basePredictions[0]);

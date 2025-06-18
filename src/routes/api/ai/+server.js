@@ -3,6 +3,8 @@
 import { extractData } from "./utils.js";
 import { sweetSpotPredictor } from "../../../lib/utils/SweetSpot.js";
 import { DataRetriever } from "../../../lib/utils/dataRetriever.js";
+import { ImprovedLotteryPredictor } from "../../../lib/utils/predictorMarkTwo.js";
+import { KolmogorovLotteryPredictor, createKolmogorovCompliantPredictor } from "../../../lib/utils/Kolmogorov.js";
 
 export async function GET() {
   try {
@@ -27,10 +29,16 @@ export async function GET() {
     }
     
     // Generate predictions
-    const predictedSets = sweetSpotPredictor.predict(filteredData, 5);
-    console.log("Generated predictions:", predictedSets);
+    const improvedPredictor = new ImprovedLotteryPredictor(filteredData, 5, {});
+    const kolmogorovPredictor = createKolmogorovCompliantPredictor(improvedPredictor);
+    console.log("\n🎯 Generating full Kolmogorov predictions...");
+    const predictions = kolmogorovPredictor.predict(extractedData, 5, { 
+            autoCalibrate: true,
+            favorHot: true 
+        });
+    console.log("Generated predictions:", predictions);
     
-    return new Response(JSON.stringify(predictedSets), { 
+    return new Response(JSON.stringify(predictions), { 
       status: 200,
       headers: {
         'Content-Type': 'application/json'
