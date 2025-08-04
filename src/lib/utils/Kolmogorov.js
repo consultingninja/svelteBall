@@ -7,9 +7,21 @@ export class KolmogorovLotteryPredictor {
             regularBalls: { min: 1, max: 69, count: 5 },
             powerball: { min: 1, max: 26, count: 1 },
             randomnessThreshold: 0.7, // Minimum randomness score to accept
+            maxRandomnessThreshold: 0.85, // Maximum randomness score to accept (re-roll if higher)
             maxRejectionAttempts: 100,
             ...config
         };
+
+        // Sanity check to ensure min threshold is not higher than max threshold.
+        // This handles cases where a user might misconfigure the values.
+        if (this.config.randomnessThreshold >= this.config.maxRandomnessThreshold) {
+            console.warn(
+                `Configuration issue: randomnessThreshold (${this.config.randomnessThreshold}) ` +
+                `is higher than or equal to maxRandomnessThreshold (${this.config.maxRandomnessThreshold}). ` +
+                `Adjusting randomnessThreshold to be 0.01 less than the maximum.`
+            );
+            this.config.randomnessThreshold = this.config.maxRandomnessThreshold - 0.01;
+        }
         
         this.randomnessTests = {
             compressionRatio: this._compressionTest.bind(this),
@@ -470,7 +482,7 @@ export class KolmogorovLotteryPredictor {
             // Calculate randomness score
             const randomnessScore = this.calculateRandomnessScore(fullSequence);
             
-            // Keep track of best candidate
+            // Keep track of best candidate found so far (in case we time out)
             if (randomnessScore.overall > bestScore) {
                 bestScore = randomnessScore.overall;
                 bestCandidate = {
@@ -479,8 +491,9 @@ export class KolmogorovLotteryPredictor {
                 };
             }
             
-            // Accept if meets threshold
-            if (randomnessScore.overall >= this.config.randomnessThreshold) {
+            // Accept if score is within the acceptable range [min, max]
+            if (randomnessScore.overall >= this.config.randomnessThreshold && 
+                randomnessScore.overall <= this.config.maxRandomnessThreshold) {
                 return {
                     ...candidate,
                     randomnessScore: randomnessScore,
@@ -493,7 +506,8 @@ export class KolmogorovLotteryPredictor {
                 const perturbed = this._perturbSequence(fullSequence, 0.2);
                 const perturbedScore = this.calculateRandomnessScore(perturbed);
                 
-                if (perturbedScore.overall >= this.config.randomnessThreshold) {
+                if (perturbedScore.overall >= this.config.randomnessThreshold &&
+                    perturbedScore.overall <= this.config.maxRandomnessThreshold) {
                     return {
                         regular: perturbed.slice(0, this.config.regularBalls.count),
                         powerball: perturbed[this.config.regularBalls.count],
@@ -507,8 +521,8 @@ export class KolmogorovLotteryPredictor {
             attempts++;
         }
         
-        // Return best candidate found if threshold never met
-        console.warn(`Could not generate sequence meeting randomness threshold ${this.config.randomnessThreshold} after ${attempts} attempts. Returning best found with score ${bestScore.toFixed(3)}`);
+        // Return best candidate found if thresholds were never met
+        console.warn(`Could not generate sequence meeting randomness thresholds [${this.config.randomnessThreshold.toFixed(3)}, ${this.config.maxRandomnessThreshold.toFixed(3)}] after ${attempts} attempts. Returning best found with score ${bestScore.toFixed(3)}`);
         
         return {
             ...bestCandidate.sequence,
@@ -580,7 +594,7 @@ export function createKolmogorovCompliantPredictor(basePredictor) {
                     throw err;
                 }
             }
-            console.log(`🎲 Kolm Predictor initialized with threshold: ${kolmogorovPredictor.config.randomnessThreshold.toFixed(3)}`);
+            console.log(`🎲 Kolm Predictor initialized with thresholds: [${kolmogorovPredictor.config.randomnessThreshold.toFixed(3)}, ${kolmogorovPredictor.config.maxRandomnessThreshold.toFixed(3)}]`);
             
             const predictions = [];
             

@@ -5,6 +5,7 @@ import { sweetSpotPredictor } from "../../../lib/utils/SweetSpot.js";
 import { DataRetriever } from "../../../lib/utils/dataRetriever.js";
 import { ImprovedLotteryPredictor } from "../../../lib/utils/predictorMarkTwo.js";
 import { KolmogorovLotteryPredictor, createKolmogorovCompliantPredictor } from "../../../lib/utils/Kolmogorov.js";
+import { generateCompliantSets } from "../../../lib/utils/noVetoGenerator.js";
 
 export async function GET() {
   try {
@@ -29,13 +30,8 @@ export async function GET() {
     }
     
     // Generate predictions
-    const improvedPredictor = new ImprovedLotteryPredictor(filteredData, 5, {});
-    const kolmogorovPredictor = createKolmogorovCompliantPredictor(improvedPredictor);
-    console.log("\n🎯 Generating full Kolmogorov predictions...");
-    const predictions = kolmogorovPredictor.predict(extractedData, 5, { 
-            autoCalibrate: true,
-            favorHot: true 
-        });
+    const numberOfSets = 5; // Define how many sets you want to generate
+    const predictions = generateCompliantSets(numberOfSets,filteredData);
     console.log("Generated predictions:", predictions);
     
     return new Response(JSON.stringify(predictions), { 
