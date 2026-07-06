@@ -5,19 +5,22 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"test": "node --test tests/",
+		"data:update": "node scripts/update-data.js",
+		"data:check": "node scripts/update-data.js --check",
+		"train:dataset": "node training/build-dataset.js",
+		"train:lora": "training/train-lora.sh",
+		"slm:serve": "training/serve-slm.sh"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^2.0.0",
-		"@sveltejs/adapter-vercel": "^3.0.2",
+		"@sveltejs/adapter-static": "^2.0.3",
 		"@sveltejs/kit": "^1.5.0",
 		"svelte": "^4.0.5",
 		"vite": "^4.0.0"
 	},
 	"type": "module",
 	"dependencies": {
-		"@anthropic-ai/sdk": "^0.19.1",
-		"csv-parse": "^5.5.5",
-		"puppeteer": "^22.6.1"
+		"csv-parse": "^5.5.5"
 	}
 }

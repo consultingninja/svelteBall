@@ -1,0 +1,6 @@
+{
+  "appId": "ai.lumynix.app",
+  "appName": "svelteball",
+  "webDir": "build",
+  "bundledWebRuntime": false
+}

@@ -1,6 +1,5 @@
 <nav class="navbar">
     <a href="/">Home</a>
-    <a href="/claude">Claude</a>
 </nav>
 
 <style>
@@ -20,4 +19,3 @@
         text-decoration: none;
     }
 </style>
-
